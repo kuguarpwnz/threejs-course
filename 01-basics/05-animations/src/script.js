@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import gsap from 'gsap'
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
@@ -22,6 +23,8 @@ const sizes = {
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height)
 camera.position.z = 3
 scene.add(camera)
+
+gsap.to(mesh.position, { duration: 1, delay: 1, x: 2 })
 
 // Renderer
 const renderer = new THREE.WebGLRenderer({
@@ -54,10 +57,12 @@ function createLoop() {
     let currentRafId
 
     function start() {
-        const getFrameTime = createFrameTimeGetter()
+        // const getFrameTime = createFrameTimeGetter()
+        const clock = new THREE.Clock()
 
         function loop(timestamp) {
-            const frameTime = getFrameTime(timestamp)
+            // const frameTime = getFrameTime(timestamp)
+            const frameTime = clock.getDelta() * 1000
 
             tick(frameTime)
             render()
