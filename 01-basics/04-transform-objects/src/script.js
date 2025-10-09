@@ -48,7 +48,7 @@ const cube3 = new THREE.Mesh(
 )
 cube3.position.z = 1
 group.add(cube3)
-group.scale.set(0.3, 0.3, 0.3  )
+group.scale.set(0.3, 0.3, 0.3)
 group.rotation.z = 0.2
 
 scene.add(group)
