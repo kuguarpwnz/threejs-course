@@ -6,23 +6,70 @@ import GUI from 'lil-gui'
  * Base
  */
 // Debug
+const configOverride = {
+    "i": 0.2115,
+    "r": 9.66,
+    "w": 2.9323,
+    "l": 1.34526,
+    "size": 0.72,
+    "camera": {
+        "position": [
+            16.852186444775842,
+            -3.3593105758394985,
+            3.2501679137606803
+        ],
+        "quaternion": [
+            0.371443678664107,
+            -0.4451038217016162,
+            0.21000257510899834,
+            0.7872808266017158
+        ],
+        "target": [
+            20.257137388826493,
+            1.4641016530553588,
+            1.2014273515058513
+        ]
+    }
+}
+
 const config = {
     i: 0.09,
     r: 2,
     w: 0.5,
     l: 1,
     size: 0.2,
+    ...configOverride,
 }
+
 let shouldUpdatePoints = false
 function forceUpdate() {
     shouldUpdatePoints = true
 }
-const gui = new GUI({ width: 400 })
+const gui = new GUI({ width: 700 })
 gui.add(config, 'i').min(0.01).max(0.5).step(0.0001).onChange(forceUpdate)
-gui.add(config, 'r').min(0.0).max(5).step(0.01).onChange(forceUpdate)
+gui.add(config, 'r').min(0.0).max(10).step(0.01).onChange(forceUpdate)
 gui.add(config, 'w').min(0.0).max(5).step(0.0001).onChange(forceUpdate)
 gui.add(config, 'l').min(0.0).max(1.5).step(0.00001).onChange(forceUpdate)
 gui.add(config, 'size').min(0.01).max(1.5).step(0.01).onChange(forceUpdate)
+gui.add({
+    async copy() {
+        try {
+            const mergedConfig = {
+                ...config,
+                camera: {
+                    position: camera.position.toArray(),
+                    quaternion: camera.quaternion.toArray(),
+                    target: controls.target.toArray(),
+                }
+            }
+
+            const text = JSON.stringify(mergedConfig, null, 2)
+            await navigator.clipboard.writeText(text)
+        } catch (error) {
+            console.error(error)
+        }
+    }
+}, 'copy')
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
@@ -105,16 +152,11 @@ function buildTriangle(i, points, radius, prevNormal) {
 }
 
 /**
- * Textures
- */
-const textureLoader = new THREE.TextureLoader()
-const particlesTexture = textureLoader.load('/textures/particles/2.png')
-/**
  * Particles
  */
 // const particlesGeometry = new THREE.SphereGeometry(1, 32, 32)
 const particlesGeometry = new THREE.BufferGeometry()
-const count = 5000
+const count = 1000
 const points = generatePoints()
 particlesGeometry.setAttribute('position', new THREE.BufferAttribute(
     new Float32Array(
@@ -155,6 +197,38 @@ function unwrapTriangle(a, b, c,) {
     ]
 }
 
+function getTrianglesColors(positions, colorStops) {
+    const vertexCount = positions.count
+
+    const colors = new Float32Array(vertexCount * 3)
+    const color = new THREE.Color()
+
+    for (let i = 0; i < vertexCount; i++) {
+        const t = i / (vertexCount - 1)
+
+        // Find the two gradient stops that t falls between
+        let c0 = colorStops[0]
+        let c1 = colorStops[colorStops.length - 1]
+        for (let j = 0; j < colorStops.length - 1; j++) {
+            if (t >= colorStops[j].stop && t <= colorStops[j + 1].stop) {
+                c0 = colorStops[j]
+                c1 = colorStops[j + 1]
+                break
+            }
+        }
+
+        // Interpolate between the two colors
+        const localT = (t - c0.stop) / (c1.stop - c0.stop)
+        color.set(c0.color).lerp(new THREE.Color(c1.color), localT)
+
+        colors[i * 3] = color.r
+        colors[i * 3 + 1] = color.g
+        colors[i * 3 + 2] = color.b
+    }
+
+    return colors
+}
+
 const positions = []
 let prevNormal = null
 
@@ -172,7 +246,18 @@ for (let i = 0; i < points.length; ++i) {
 const trianglesGeometry = new THREE.BufferGeometry()
 trianglesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
 
-const trianglesMaterial = new THREE.LineBasicMaterial({ color: '#ccff00' })
+// define gradient stops (like CSS)
+const gradientStops = [
+    { stop: 0.0, color: '#7700ff' },
+    { stop: 0.2, color: '#0095ff' },
+    { stop: 0.4, color: '#00ffbf' },
+    { stop: 1.0, color: '#3300ff' },
+]
+
+const colors = getTrianglesColors(trianglesGeometry.getAttribute('position'), gradientStops)
+trianglesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+
+const trianglesMaterial = new THREE.LineBasicMaterial({ vertexColors: true })
 const trianglesMesh = new THREE.LineSegments(trianglesGeometry, trianglesMaterial)
 scene.add(trianglesMesh)
 
@@ -202,14 +287,21 @@ window.addEventListener('resize', () => {
  * Camera
  */
 // Base camera
-const camera = new THREE.PerspectiveCamera(120, sizes.width / sizes.height, 0.1, 100)
+const camera = new THREE.PerspectiveCamera(120, sizes.width / sizes.height, 0.1, 1000)
 camera.position.set(25, 1.75, 4)
 camera.lookAt(0, 0, 0)
+if (config.camera) {
+    camera.position.fromArray(config.camera.position)
+    camera.quaternion.fromArray(config.camera.quaternion)
+}
 scene.add(camera)
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
+if (config.camera) {
+    controls.target.fromArray(config.camera.target)
+}
 
 /**
  * Renderer
