@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
     push:
-        branches: [main]
+        branches: [resume]
 
 permissions:
     contents: read
@@ -26,17 +26,17 @@ jobs:
                   node-version: 22.20.0
 
             - name: Install dependencies
-              working-directory: ./02-classic-techniques/18-galaxy-generator
+              working-directory: ./00-resume
               run: npm ci
 
             - name: Build project
-              working-directory: ./02-classic-techniques/18-galaxy-generator
+              working-directory: ./00-resume
               run: npm run build
 
             - name: Upload build output
               uses: actions/upload-pages-artifact@v3
               with:
-                  path: ./02-classic-techniques/18-galaxy-generator/dist
+                  path: ./00-resume/18-galaxy-generator/dist
 
     deploy:
         environment:
